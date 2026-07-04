@@ -20,7 +20,8 @@ app.command("/cybro-help", async ({ ack, respond }) => {
 /cybro-joke - Get a Joke
 /cybro-ask - Ask anything
 /cybro-info - Information about Cybro
-/cybro-timer - Set a timer`,
+/cybro-timer - Set a timer
+/cybro-coinflip - Flip a coin`,
   });
 });
 
@@ -48,6 +49,31 @@ app.command("/cybro-info", async ({ ack, respond }) => {
     });
   } catch (err) {
     await respond({ text: "Failed to fetch information about Cybro." });
+  }
+});
+
+app.command("/cybro-coinflip", async ({ ack, command, respond }) => {
+  await ack();
+
+  try {
+    const isHeads = Math.random() < 0.5;
+    const result = isHeads ? "Heads" : "Tails";
+    const emoji = isHeads ? "🪙 (Heads)" : "🦅 (Tails)";
+
+    await respond({
+      text: `<@${command.user_id}> flipped a coin and got: ${result}`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `<@${command.user_id}> spun the coin... \n\n It's *${emoji}*!`,
+          }
+        }
+      ]
+    });
+  } catch (err) {
+    await respond({ text: "Failed to flip a coin." });
   }
 });
 
