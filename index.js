@@ -73,14 +73,15 @@ app.command("/cybro-timer", async ({ ack, respond, command }) => {
     return;
   }
 
-  let totalSeconds = min * 60;
-  const initialSeconds = totalSeconds;
+  const totalMilliseconds = min * 60 * 1000;
+  const stepDuration = totalMilliseconds / 4; // 4 steps for progress bar updates
+  let currentStep = 0;
 
-  const getProgressBar = (remaining, total) => {
-    const totalBars = 10;
-    const filledBars = Math.round((remaining / total) * totalBars);
+  const getProgressBar = (step) => {
+    const totalBars = 12;
+    const filledBars = Math.round((step / 4) * totalBars);
     const emptyBars = totalBars - filledBars;
-    return "[" + "█".repeat(filledBars) + "░".repeat(emptyBars) + "]";
+    return "[" + "🟩".repeat(filledBars) + "⬜".repeat(emptyBars) + "]";
   };
 
   const formatTime = (seconds) => {
@@ -96,7 +97,7 @@ app.command("/cybro-timer", async ({ ack, respond, command }) => {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `⏰ Timer set for *${min} minute(s)*. I will notify you when it's done.`,
+          text: `⏰ Timer Started for *${min} minute(s)*. Progressing...`,
         },
       },
       {
@@ -104,28 +105,26 @@ app.command("/cybro-timer", async ({ ack, respond, command }) => {
         elements: [
           {
             type: "plain_text",
-            text: getProgressBar(totalSeconds, initialSeconds),
+            text: `${getProgressBar(currentStep)} 0% complete`,
           },
         ],
       },
     ],
   });
 
-  const intervalSeconds = 2;
-
   const countdownInterval = setInterval(async () => {
-    totalSeconds -= intervalSeconds;
+    currentStep++;
 
     try {
-      if (totalSeconds > 0) {
-        // FIXED: Removed clearInterval from here so the loop keeps running
+      if (currentStep < 4) {
+        const percentage = currentStep * 25; // Each step represents 25%
         await respond({
           blocks: [
             {
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `⏰ Countdown: ${formatTime(totalSeconds)} remaining.`,
+                text: `⏰ Timer is running for *${min} minute(s)*...`,
               },
             },
             {
@@ -133,34 +132,42 @@ app.command("/cybro-timer", async ({ ack, respond, command }) => {
               elements: [
                 {
                   type: "plain_text",
-                  text: getProgressBar(totalSeconds, initialSeconds), // Added progress bar updates here
+                  text: `${getProgressBar(currentStep)} ${percentage}% complete`,
                 },
               ],
             },
           ],
-          text: `⏰ Countdown: ${formatTime(totalSeconds)} remaining.`,
           replace_original: true,
         });
       } else {
-        clearInterval(countdownInterval); // FIXED: Moved clearInterval here
+        clearInterval(countdownInterval);
         await respond({
           blocks: [
             {
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `⏰ Time's up! ${min} minute(s) have passed.`,
+                text: `✅ *Time's up!* Your ${min} minute(s) timer is complete.`,
               },
             },
+            {
+              type: "context",
+              elements: [
+                {
+                  type: "plain_text",
+                  text: `${getProgressBar(currentStep)} 100% complete`,
+                },
+              ],
+            },
           ],
-          text: `⏰ Time's up! ${min} minute(s) have passed.`,
           replace_original: true,
         });
       }
     } catch (err) {
-      console.error("Failed to send countdown notification:", err);
+      console.error("Failed to update timer:", err);
+      clearInterval(countdownInterval);
     }
-  }, intervalSeconds * 1000);
+  }, stepDuration);
 });
 
 app.command("/cybro-catfact", async ({ ack, respond }) => {
