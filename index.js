@@ -52,6 +52,75 @@ app.command("/cybro-info", async ({ ack, respond }) => {
   }
 });
 
+app.command("/cybro-ask", async ({ ack, command, respond }) => {
+  await ack();
+
+  const userPrompt = command.text.trim();
+
+  if (!userPrompt) {
+    await respond({
+      text: "*Please provide a question.* Example: '/cybro-ask Where is Mount Everest?'",
+      response_type: "ephemeral"
+    });
+    return;
+  }
+
+  try{
+    await respond({
+      text: '*Processing your request...*\n> \'' + userPrompt + '\'',
+    });
+
+    const aiAnswer = await axios.post(
+      process.env.HACKCLUB_AI_API,
+      {
+        model: "google/gemini-3.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant. Your name is Cybro. You are a Slack bot that provides information and answers questions. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'"
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).then(res => res.data.choices[0].message.content.trim());
+
+    await respond({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Question:* ${userPrompt}`
+          }
+        },
+        {
+          type: "divider",
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Answer:* ${aiAnswer}`
+          }
+        }
+      ],
+      text: 'Answer: ${aiAnswer}',
+      response_original: true
+    });
+  } catch (err) {
+    await respond({ text: "Failed to process your request." });
+  }
+});
+
 app.command("/cybro-coinflip", async ({ ack, command, respond }) => {
   await ack();
 
