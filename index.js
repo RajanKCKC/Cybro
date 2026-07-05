@@ -21,7 +21,12 @@ app.command("/cybro-help", async ({ ack, respond }) => {
 /cybro-ask - Ask anything
 /cybro-info - Information about Cybro
 /cybro-timer - Set a timer
-/cybro-coinflip - Flip a coin`,
+/cybro-coinflip - Flip a coin
+/cybro-calc - Calculate a math expression
+/cybro-translate - Translate text to another language
+/cybro-date - Get the current date and time of any Country or Timezone
+`,
+    response_type: "ephemeral",
   });
 });
 
@@ -30,6 +35,31 @@ app.command("/cybro-ping", async ({ command, ack, respond }) => {
   await ack();
   const latency = Date.now() - start;
   await respond({ text: `Pong!\nLatency: ${latency}ms` });
+});
+
+app.command("/cybro-date", async ({ ack, command, respond }) => {
+  await ack();
+  const userPrompt = command.text.trim();
+
+  if (!userPrompt) {
+    await respond({
+      text: "*Please provide a country or timezone.* Example: '/cybro-date Asia/Kathmandu'",
+      response_type: "ephemeral"
+    });
+    return;
+  }
+
+  try {
+    const response = await axios.get(`https://timeapi.io/api/v1/time/current/zone?timezone=${encodeURIComponent(userPrompt)}`);
+    const dateTime = new Date(response.data.date_time);
+    const formattedDateTime = dateTime.toLocaleString('en-US', { timeZone: response.data.timezone });
+
+    await respond({
+      text: `Current date and time in ${response.data.timezone} is:\n${formattedDateTime}`,
+    });
+  } catch (err) {
+    await respond({ text: "Failed to fetch the current date and time. Please ensure the country or timezone is valid." });
+  }
 });
 
 app.command("/cybro-info", async ({ ack, respond }) => {
@@ -78,6 +108,144 @@ app.command("/cybro-ask", async ({ ack, command, respond }) => {
           {
             role: "system",
             content: "You are a helpful assistant. Your name is Cybro. You are a Slack bot that provides information and answers questions. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'"
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).then(res => res.data.choices[0].message.content.trim());
+
+    await respond({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Question:* ${userPrompt}`
+          }
+        },
+        {
+          type: "divider",
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Answer:* ${aiAnswer}`
+          }
+        }
+      ],
+      text: 'Answer: ${aiAnswer}',
+      response_original: true
+    });
+  } catch (err) {
+    await respond({ text: "Failed to process your request." });
+  }
+});
+
+app.command("/cybro-calc", async ({ ack, command, respond }) => {
+  await ack();
+
+  const userPrompt = command.text.trim();
+
+  if (!userPrompt) {
+    await respond({
+      text: "*Please provide a question.* Example: '/cybro-calc 2 + 2'",
+      response_type: "ephemeral"
+    });
+    return;
+  }
+
+  try{
+    await respond({
+      text: '*Calculating...*\n> \'' + userPrompt + '\'',
+    });
+
+    const aiAnswer = await axios.post(
+      process.env.HACKCLUB_AI_API,
+      {
+        model: "google/gemini-3.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "Your name is Cybro. You are a Slack bot that do Calculations. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to calculations and math expressions. You will not answer any other questions."
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).then(res => res.data.choices[0].message.content.trim());
+
+    await respond({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Question:* ${userPrompt}`
+          }
+        },
+        {
+          type: "divider",
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Answer:* ${aiAnswer}`
+          }
+        }
+      ],
+      text: 'Answer: ${aiAnswer}',
+      response_original: true
+    });
+  } catch (err) {
+    await respond({ text: "Failed to process your request." });
+  }
+});
+
+app.command("/cybro-translate", async ({ ack, command, respond }) => {
+  await ack();
+
+  const userPrompt = command.text.trim();
+
+  if (!userPrompt) {
+    await respond({
+      text: "*Please provide a translation request.* Example: '/cybro-translate Hello, how are you? to Nepali'",
+      response_type: "ephemeral"
+    });
+    return;
+  }
+
+  try{
+    await respond({
+      text: '*Translating...*\n> \'' + userPrompt + '\'',
+    });
+
+    const aiAnswer = await axios.post(
+      process.env.HACKCLUB_AI_API,
+      {
+        model: "google/gemini-3.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "Your name is Cybro. You are a Slack bot that translates text. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to translation requests. You will not answer any other questions. If the user asks you to translate text, you will provide the translation in the requested language. If the user does not specify a language, you will ask them to specify a language. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time. If the user gave you in another language and did not specify a language, you will translate the text to English. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time."
           },
           {
             role: "user",
