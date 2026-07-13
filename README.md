@@ -1,51 +1,61 @@
 # Cybro
 
-AI-driven productivity and utility Slack bot built on top of slack bolt framework that answer questions, translates languages, handles math expressions and automates daily utilities.
+Cybro is a simple Slack bot that bring AI chat, quick mah, translations, and some utiliies right ino your Slack workspace chats. It's built with JavaScript using Slack's Bolt framework.
 
----
+![Cybro Bot](Cybro.png)
 
-### [Try the Live Demo](https://hackclub.enterprise.slack.com/archives/C0BFJLJ6KUG)
 
----
+
+## [Try the live Demo](https://hackclub.enterprise.slack.com/archives/C0BFJLJ6KUG)
+
+
 
 ## Quick Start
 
-Get Cybro to your local environment of Slack workspace in seconds:
+Run Cybro locally in your own workspace in under a minute:
 
 ```bash
-# Clone the Project
+
+# Clone the repo
 git clone https://github.com/RajanKCKC/Cybro.git
 
-# Install required dependencies
+# Install he dependencies
 npm install
 
 # Start the bot
 npm start
 
 ```
----
+# Slash Commands
 
-## Features 
+Instead of dealing single confusing chat interface, you can use direct slash commands for whatever you need:
 
-* **AI Assistant (`/cybro-ask`):** Powered by Google`s Gemini 3.5 Flash model via the Hack Club API for real-time contextual questions instantly.
-* **Smart Calculator (`/cybro-calc`):** System prompt math parser for fast concise calculation responses.
-* **Real-Time Translation (`/cybro-translate`):** Multi-language parsing to directly translate the input text into your target language.
-* **Visual Workspace Timer (`/cybro-timer`):** Keeps you on track with an automated, live-updating Slack message progress bar.
-* **World Clock (`/cybro-date`):** Directly calls external time APIs to get current times for any city or timezone.
-* **Workspace Utilities:** Get instant access to latency tests (`/cybro-ping`), coinflips (`/cybro-coinflip`), jokes and facts.
+* `/cybro-help` - Gives the list of available commands.
+* `/cybro-ping` - Check the latency of the bot.
+* `/cybro-catfact` - Gives facts about cats.
+* `/cybro-dogfact` - Gives facts about dogs.
+* `/cybro-joke` - Gives bes and funniest jokes.
+* `/cybro-ask` - Ask Google's Gemini 3.5 Flash model anything (Via HackClub's AI API)
+* `/cybro-info` - Gives Information about Cybro
+* `/cybro-timer` - Spawns a live-updating progress bar in your channel.
+* `/cybro-coinflip` - Flip a coin.
+* `/cybro-calc` - Solve math formulas instanlly.
+* `/cybro-translate` - Translate text to another language.
+* `/cybro-date` - Get the current date and time of any Country or Timezone.
 
----
 
-## Local Development Setup
 
-### Prerequisites 
+## Setup
 
-* **Node.js:** `v18.x` or higher
-* **Slack Developer App:** A registered Slack app with Socket Mode enabled.
+### Requirement
 
-### 1. Environment Variavles
+* **Node.js** (v18 or higher)
+* A slack App with Aocket Mode enabled.
 
-Create a `.env` file in the root directory of your project and populate it with your workspace and API Credentials:
+
+### 1. Environment Variables
+
+Create a `.env` files in your root folder and add your keys:
 
 ```env
 SLACK_BOT_TOKEN=xoxb-....  # Bot User OAuth Token (from OAuth & Permissions)
@@ -55,22 +65,19 @@ HACKCLUB_AI_API=https://ai.hackclub.com/proxy/v1/chat/completions # Hack Club AI
 HACKCLUB_AI_API_KEY=sk-hc-....  # Hack Club AI API Key (from Hack Club AI)     
 ```
 
-### 2. Configuration & Slash Commands
+### 2. Enable the Commands
 
-Your Slack App dashboard should have the following slash Commands registered pointing toward your socket server:
+Make sure to add these exact slash command inside your Slack App setting dashboard so Slack knows  where to route them:
 
-* `/cybro-help`, `/cybro-ping`, `/cybro-info`, `/cybro-ask`, `/cybro-calc`, `/cybro-translate`, `/cybro-coinflip`,`/cybro-dogfact`, `/cybro-catfact`, `/cybro-joke`, `/cybro-timer`, `/cybro-date`
+`/cybro-help`, `/cybro-ping`, `/cybro-catfact`,
+`/cybro-dogfact`, `/cybro-joke`, `/cybro-ask`,
+`/cybro-info`, `/cybro-timer`, `/cybro-coinflip`,
+`/cybro-calc`, `/cybro-translate`, `/cybro-date`
 
----
 
-## How It Works
 
-Cybro is entirely built on **Socket Mode** using **Slack's Bolt JS Framework**. With this architecture, during development you don't have to expose any HTTP endpoints publicly, and you create a secure, Stateful WebSocket connection directly from local machine or hosting server to Slack.
+# Credits 
 
----
-
-## Credits & Acknowledgements
-
-* **Slack Bolt SDK** - To make Slack App integration a breeze.
-* **HackClub AI API** - Instant access to the `google/gemini-3.5-flash` model.
-* **External API Providers** - [TimeAPI.io](https://timeapi.io) (Timexones), [Dog API](https://dogapi.dog) (Dog Facts), [Cat Fact Ninja](https://catfact.ninja), and [Offical Joke API](https://offical-joke-api.appspot.com).
+* **Slack Bolt SDK** - Powers the bot logic.
+* **HackClub AI API** - Provides the `gemini-3.5-flash` model access.
+* **Public APIs** Used for fetching global times, jokes, and facts.
