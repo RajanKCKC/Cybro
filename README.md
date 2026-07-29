@@ -75,6 +75,10 @@ Make sure to add these exact slash command inside your Slack App setting dashboa
 `/cybro-calc`, `/cybro-translate`, `/cybro-date`
 
 
+# AI Declaration
+
+No AI tools or generative AI services were used in the development or writing of this project.
+
 
 # Credits 
 
