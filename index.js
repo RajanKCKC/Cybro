@@ -25,6 +25,7 @@ app.command("/cybro-help", async ({ ack, respond }) => {
 /cybro-calc - Calculate a math expression
 /cybro-translate - Translate text to another language
 /cybro-date - Get the current date and time of any Country or Timezone
+/cybro-poll - Create a poll
 `,
     response_type: "ephemeral",
   });
@@ -37,6 +38,67 @@ app.command("/cybro-ping", async ({ command, ack, respond }) => {
   await respond({ text: `Pong!\nLatency: ${latency}ms` });
 });
 
+app.command("/cybro-poll", async ({ ack, command, respond }) => {
+  await ack();
+
+  // Use command.text instead of input
+  const rawInput = command.text.trim();
+
+  // Extract arguments enclosed in double quotes
+  const args =
+    rawInput.match(/"([^"]+)"/g)?.map((arg) => arg.replace(/"/g, "")) || [];
+
+  if (args.length < 3) {
+    await respond({
+      text: '*Usage format:* `/cybro-poll "Question" "Option 1" "Option 2" ...` (Provide at least 2 options)',
+      response_type: "ephemeral",
+    });
+    return;
+  }
+
+  const question = args[0];
+  const options = args.slice(1, 6); // Max 5 options
+
+  const blocks = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `📊 *Poll:* ${question}\n_Created by <@${command.user_id}>_`,
+      },
+    },
+    { type: "divider" },
+  ];
+
+  options.forEach((opt, idx) => {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${opt}*\n_No votes yet_`,
+      },
+      accessory: {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: `Vote ${idx + 1}`,
+        },
+        value: opt,
+        action_id: `poll_vote_${idx}`,
+      },
+    });
+  });
+
+  try {
+    await respond({
+      response_type: "in_channel",
+      blocks: blocks,
+    });
+  } catch (err) {
+    await respond({ text: "Failed to create poll." });
+  }
+});
+
 app.command("/cybro-date", async ({ ack, command, respond }) => {
   await ack();
   const userPrompt = command.text.trim();
@@ -44,21 +106,27 @@ app.command("/cybro-date", async ({ ack, command, respond }) => {
   if (!userPrompt) {
     await respond({
       text: "*Please provide a country or timezone.* Example: '/cybro-date Asia/Kathmandu'",
-      response_type: "ephemeral"
+      response_type: "ephemeral",
     });
     return;
   }
 
   try {
-    const response = await axios.get(`https://timeapi.io/api/v1/time/current/zone?timezone=${encodeURIComponent(userPrompt)}`);
+    const response = await axios.get(
+      `https://timeapi.io/api/v1/time/current/zone?timezone=${encodeURIComponent(userPrompt)}`,
+    );
     const dateTime = new Date(response.data.date_time);
-    const formattedDateTime = dateTime.toLocaleString('en-US', { timeZone: response.data.timezone });
+    const formattedDateTime = dateTime.toLocaleString("en-US", {
+      timeZone: response.data.timezone,
+    });
 
     await respond({
       text: `Current date and time in ${response.data.timezone} is:\n${formattedDateTime}`,
     });
   } catch (err) {
-    await respond({ text: "Failed to fetch the current date and time. Please ensure the country or timezone is valid." });
+    await respond({
+      text: "Failed to fetch the current date and time. Please ensure the country or timezone is valid.",
+    });
   }
 });
 
@@ -90,38 +158,41 @@ app.command("/cybro-ask", async ({ ack, command, respond }) => {
   if (!userPrompt) {
     await respond({
       text: "*Please provide a question.* Example: '/cybro-ask Where is Mount Everest?'",
-      response_type: "ephemeral"
+      response_type: "ephemeral",
     });
     return;
   }
 
-  try{
+  try {
     await respond({
-      text: '*Processing your request...*\n> \'' + userPrompt + '\'',
+      text: "*Processing your request...*\n> '" + userPrompt + "'",
     });
 
-    const aiAnswer = await axios.post(
-      process.env.HACKCLUB_AI_API,
-      {
-        model: "google/gemini-3.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful assistant. Your name is Cybro. You are a Slack bot that provides information and answers questions. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'"
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
-          "Content-Type": "application/json",
+    const aiAnswer = await axios
+      .post(
+        process.env.HACKCLUB_AI_API,
+        {
+          model: "google/gemini-3.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a helpful assistant. Your name is Cybro. You are a Slack bot that provides information and answers questions. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'",
+            },
+            {
+              role: "user",
+              content: userPrompt,
+            },
+          ],
         },
-      }
-    ).then(res => res.data.choices[0].message.content.trim());
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      .then((res) => res.data.choices[0].message.content.trim());
 
     await respond({
       blocks: [
@@ -129,8 +200,8 @@ app.command("/cybro-ask", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Question:* ${userPrompt}`
-          }
+            text: `*Question:* ${userPrompt}`,
+          },
         },
         {
           type: "divider",
@@ -139,12 +210,12 @@ app.command("/cybro-ask", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Answer:* ${aiAnswer}`
-          }
-        }
+            text: `*Answer:* ${aiAnswer}`,
+          },
+        },
       ],
-      text: 'Answer: ${aiAnswer}',
-      response_original: true
+      text: "Answer: ${aiAnswer}",
+      response_original: true,
     });
   } catch (err) {
     await respond({ text: "Failed to process your request." });
@@ -159,38 +230,41 @@ app.command("/cybro-calc", async ({ ack, command, respond }) => {
   if (!userPrompt) {
     await respond({
       text: "*Please provide a question.* Example: '/cybro-calc 2 + 2'",
-      response_type: "ephemeral"
+      response_type: "ephemeral",
     });
     return;
   }
 
-  try{
+  try {
     await respond({
-      text: '*Calculating...*\n> \'' + userPrompt + '\'',
+      text: "*Calculating...*\n> '" + userPrompt + "'",
     });
 
-    const aiAnswer = await axios.post(
-      process.env.HACKCLUB_AI_API,
-      {
-        model: "google/gemini-3.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "Your name is Cybro. You are a Slack bot that do Calculations. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to calculations and math expressions. You will not answer any other questions."
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
-          "Content-Type": "application/json",
+    const aiAnswer = await axios
+      .post(
+        process.env.HACKCLUB_AI_API,
+        {
+          model: "google/gemini-3.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Your name is Cybro. You are a Slack bot that do Calculations. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to calculations and math expressions. You will not answer any other questions.",
+            },
+            {
+              role: "user",
+              content: userPrompt,
+            },
+          ],
         },
-      }
-    ).then(res => res.data.choices[0].message.content.trim());
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      .then((res) => res.data.choices[0].message.content.trim());
 
     await respond({
       blocks: [
@@ -198,8 +272,8 @@ app.command("/cybro-calc", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Question:* ${userPrompt}`
-          }
+            text: `*Question:* ${userPrompt}`,
+          },
         },
         {
           type: "divider",
@@ -208,12 +282,12 @@ app.command("/cybro-calc", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Answer:* ${aiAnswer}`
-          }
-        }
+            text: `*Answer:* ${aiAnswer}`,
+          },
+        },
       ],
-      text: 'Answer: ${aiAnswer}',
-      response_original: true
+      text: "Answer: ${aiAnswer}",
+      response_original: true,
     });
   } catch (err) {
     await respond({ text: "Failed to process your request." });
@@ -228,38 +302,41 @@ app.command("/cybro-translate", async ({ ack, command, respond }) => {
   if (!userPrompt) {
     await respond({
       text: "*Please provide a translation request.* Example: '/cybro-translate Hello, how are you? to Nepali'",
-      response_type: "ephemeral"
+      response_type: "ephemeral",
     });
     return;
   }
 
-  try{
+  try {
     await respond({
-      text: '*Translating...*\n> \'' + userPrompt + '\'',
+      text: "*Translating...*\n> '" + userPrompt + "'",
     });
 
-    const aiAnswer = await axios.post(
-      process.env.HACKCLUB_AI_API,
-      {
-        model: "google/gemini-3.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: "Your name is Cybro. You are a Slack bot that translates text. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to translation requests. You will not answer any other questions. If the user asks you to translate text, you will provide the translation in the requested language. If the user does not specify a language, you will ask them to specify a language. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time. If the user gave you in another language and did not specify a language, you will translate the text to English. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time."
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
-          "Content-Type": "application/json",
+    const aiAnswer = await axios
+      .post(
+        process.env.HACKCLUB_AI_API,
+        {
+          model: "google/gemini-3.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Your name is Cybro. You are a Slack bot that translates text. You should respond in a concise and clear manner. You give short and precise answers. If you don't know the answer, say 'I don't know.'. You will only give answers to translation requests. You will not answer any other questions. If the user asks you to translate text, you will provide the translation in the requested language. If the user does not specify a language, you will ask them to specify a language. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time. If the user gave you in another language and did not specify a language, you will translate the text to English. You will not provide translations in multiple languages at once. You will only provide translations in one language at a time.",
+            },
+            {
+              role: "user",
+              content: userPrompt,
+            },
+          ],
         },
-      }
-    ).then(res => res.data.choices[0].message.content.trim());
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.HACKCLUB_AI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      .then((res) => res.data.choices[0].message.content.trim());
 
     await respond({
       blocks: [
@@ -267,8 +344,8 @@ app.command("/cybro-translate", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Question:* ${userPrompt}`
-          }
+            text: `*Question:* ${userPrompt}`,
+          },
         },
         {
           type: "divider",
@@ -277,12 +354,12 @@ app.command("/cybro-translate", async ({ ack, command, respond }) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*Answer:* ${aiAnswer}`
-          }
-        }
+            text: `*Answer:* ${aiAnswer}`,
+          },
+        },
       ],
-      text: 'Answer: ${aiAnswer}',
-      response_original: true
+      text: "Answer: ${aiAnswer}",
+      response_original: true,
     });
   } catch (err) {
     await respond({ text: "Failed to process your request." });
@@ -305,9 +382,9 @@ app.command("/cybro-coinflip", async ({ ack, command, respond }) => {
           text: {
             type: "mrkdwn",
             text: `<@${command.user_id}> spun the coin... \n\n It's *${emoji}*!`,
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
   } catch (err) {
     await respond({ text: "Failed to flip a coin." });
