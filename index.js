@@ -38,15 +38,62 @@ app.command("/cybro-ping", async ({ command, ack, respond }) => {
   await respond({ text: `Pong!\nLatency: ${latency}ms` });
 });
 
-app.command("/cybro-poll", async ({ ack, command, respond }) => {
+const pollStore = new Map();
+
+function buildPollBlocks(question, options, votesMap = {}, creatorId) {
+  const totalVotes = Object.keys(votesMap).length;
+
+  const counts = options.map(() => 0);
+  Object.values(votesMap).forEach((optIdx) => {
+    if (counts[optIdx] !== undefined) {
+      counts[optIdx]++;
+    }
+  });
+
+  const blocks = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `📊 *Poll:* ${question}\n_Created by <@${creatorId}>_ • *${totalVotes} vote(s)*`,
+      },
+    },
+    { type: "divider" },
+  ];
+
+  options.forEach((opt, idx) => {
+    const voteCount = counts[idx];
+    const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+    
+    const filledBars = Math.round((percentage / 100) * 8);
+    const progressBar = "🟩".repeat(filledBars) + "⬜".repeat(8 - filledBars);
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${opt}*\n${progressBar} ${percentage}% (${voteCount} vote${voteCount === 1 ? "" : "s"})`,
+      },
+      accessory: {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: `Vote Option ${idx + 1}`,
+        },
+        value: `${idx}`,
+        action_id: `poll_vote_${idx}`,
+      },
+    });
+  });
+
+  return blocks;
+}
+
+app.command("/cybro-poll", async ({ ack, command, respond, client }) => {
   await ack();
 
-  // Use command.text instead of input
   const rawInput = command.text.trim();
-
-  // Extract arguments enclosed in double quotes
-  const args =
-    rawInput.match(/"([^"]+)"/g)?.map((arg) => arg.replace(/"/g, "")) || [];
+  const args = rawInput.match(/"([^"]+)"/g)?.map((arg) => arg.replace(/"/g, "")) || [];
 
   if (args.length < 3) {
     await respond({
@@ -57,45 +104,75 @@ app.command("/cybro-poll", async ({ ack, command, respond }) => {
   }
 
   const question = args[0];
-  const options = args.slice(1, 6); // Max 5 options
+  const options = args.slice(1, 6);
 
-  const blocks = [
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `📊 *Poll:* ${question}\n_Created by <@${command.user_id}>_`,
-      },
-    },
-    { type: "divider" },
-  ];
-
-  options.forEach((opt, idx) => {
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*${opt}*\n_No votes yet_`,
-      },
-      accessory: {
-        type: "button",
-        text: {
-          type: "plain_text",
-          text: `Vote ${idx + 1}`,
-        },
-        value: opt,
-        action_id: `poll_vote_${idx}`,
-      },
+  try {
+    const result = await client.chat.postMessage({
+      channel: command.channel_id,
+      blocks: buildPollBlocks(question, options, {}, command.user_id),
+      text: `Poll: ${question}`,
     });
-  });
+
+    if (result.ts) {
+      pollStore.set(result.ts, {
+        question,
+        options,
+        creatorId: command.user_id,
+        votes: {},
+      });
+    }
+  } catch (err) {
+    console.error("Failed to post poll:", err);
+    await respond({ text: "Failed to create poll." });
+  }
+});
+
+app.action(/^poll_vote_\d+$/, async ({ ack, body, action, respond }) => {
+  await ack();
+
+  const msgTs = body.message.ts;
+  const userId = body.user.id;
+  const selectedOptionIndex = parseInt(action.value, 10);
+
+  let pollData = pollStore.get(msgTs);
+
+  if (!pollData) {
+    const questionText = body.message.blocks[0]?.text?.text || "";
+    const questionMatch = questionText.match(/\*Poll:\*\s*(.*?)\n/);
+    const creatorMatch = questionText.match(/<@([A-Z0-9]+)>/);
+
+    const question = questionMatch ? questionMatch[1] : "Poll";
+    const creatorId = creatorMatch ? creatorMatch[1] : body.user.id;
+    const options = body.message.blocks
+      .filter((b) => b.accessory && b.accessory.action_id?.startsWith("poll_vote_"))
+      .map((b) => {
+        const titleMatch = b.text.text.match(/\*(.*?)\*/);
+        return titleMatch ? titleMatch[1] : "Option";
+      });
+
+    pollData = {
+      question,
+      options,
+      creatorId,
+      votes: {},
+    };
+    pollStore.set(msgTs, pollData);
+  }
+
+  pollData.votes[userId] = selectedOptionIndex;
 
   try {
     await respond({
-      response_type: "in_channel",
-      blocks: blocks,
+      blocks: buildPollBlocks(
+        pollData.question,
+        pollData.options,
+        pollData.votes,
+        pollData.creatorId
+      ),
+      replace_original: true,
     });
   } catch (err) {
-    await respond({ text: "Failed to create poll." });
+    console.error("Failed to update poll vote:", err);
   }
 });
 
