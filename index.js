@@ -26,6 +26,7 @@ app.command("/cybro-help", async ({ ack, respond }) => {
 /cybro-translate - Translate text to another language
 /cybro-date - Get the current date and time of any Country or Timezone
 /cybro-poll - Create a poll
+/cybro-github - Get GitHub profile information
 `,
     response_type: "ephemeral",
   });
@@ -203,6 +204,57 @@ app.command("/cybro-date", async ({ ack, command, respond }) => {
   } catch (err) {
     await respond({
       text: "Failed to fetch the current date and time. Please ensure the country or timezone is valid.",
+    });
+  }
+});
+
+app.command("/cybro-github", async ({ ack, command, respond }) => {
+  await ack();
+
+  const username = command.text.trim();
+
+  if (!username) {
+    await respond({
+      text: "*Please provide a GitHub username.* Example: `/cybro-github octocat`",
+      response_type: "ephemeral",
+    });
+    return;
+  }
+
+  try {
+    const res = await axios.get(`https://api.github.com/users/${encodeURIComponent(username)}`);
+    const user = res.data;
+
+    await respond({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*<${user.html_url}|${user.name || user.login}>* (@${user.login})\n${user.bio || "_No bio provided._"}`,
+          },
+          accessory: {
+            type: "image",
+            image_url: user.avatar_url,
+            alt_text: "Avatar",
+          },
+        },
+        { type: "divider" },
+        {
+          type: "section",
+          fields: [
+            { type: "mrkdwn", text: `*Public Repos:* ${user.public_repos}` },
+            { type: "mrkdwn", text: `*Followers:* ${user.followers}` },
+            { type: "mrkdwn", text: `*Following:* ${user.following}` },
+            { type: "mrkdwn", text: `*Location:* ${user.location || "N/A"}` },
+          ],
+        },
+      ],
+      text: `GitHub Profile info for ${user.login}`,
+    });
+  } catch (err) {
+    await respond({
+      text: "Failed to fetch GitHub profile. Please check if the username is valid.",
     });
   }
 });
