@@ -27,6 +27,7 @@ app.command("/cybro-help", async ({ ack, respond }) => {
 /cybro-date - Get the current date and time of any Country or Timezone
 /cybro-poll - Create a poll
 /cybro-github - Get GitHub profile information
+/cybro-weather - Get Weather of a Location
 `,
     response_type: "ephemeral",
   });
@@ -276,6 +277,76 @@ app.command("/cybro-info", async ({ ack, respond }) => {
     });
   } catch (err) {
     await respond({ text: "Failed to fetch information about Cybro." });
+  }
+});
+
+app.command("/cybro-weather", async ({ ack, command, respond }) => {
+  await ack();
+
+  const location = command.text.trim();
+
+  if (!location) {
+    await respond({
+      text: "*Please provide a city name.* Example: `/cybro-weather Kathmandu`",
+      response_type: "ephemeral",
+    });
+    return;
+  }
+
+  try {
+    const geoRes = await axios.get(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`
+    );
+
+    if (!geoRes.data.results || geoRes.data.results.length === 0) {
+      await respond({ text: `Could not find location: *${location}*` });
+      return;
+    }
+
+    const { latitude, longitude, name, country } = geoRes.data.results[0];
+
+    const weatherRes = await axios.get(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+    );
+
+    const { temperature, windspeed, weathercode } = weatherRes.data.current_weather;
+
+    const weatherCodes = {
+      0: "☀️ Clear sky",
+      1: "🌤️ Mainly clear",
+      2: "⛅ Partly cloudy",
+      3: "☁️ Overcast",
+      45: "🌫️ Foggy",
+      51: "🌧️ Light drizzle",
+      61: "🌧️ Rain",
+      71: "❄️ Snowfall",
+      95: "⛈️ Thunderstorm",
+    };
+
+    const condition = weatherCodes[weathercode] || "🌤️ Weather update";
+
+    await respond({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Weather in ${name}, ${country}*\n${condition}`,
+          },
+        },
+        { type: "divider" },
+        {
+          type: "section",
+          fields: [
+            { type: "mrkdwn", text: `*Temperature:* ${temperature}°C` },
+            { type: "mrkdwn", text: `*Wind Speed:* ${windspeed} km/h` },
+          ],
+        },
+      ],
+      text: `Current weather in ${name}: ${temperature}°C`,
+    });
+  } catch (err) {
+    await respond({ text: "Failed to fetch weather data." });
   }
 });
 
